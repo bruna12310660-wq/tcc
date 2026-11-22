@@ -174,6 +174,16 @@ def gerar_oportunidades(leads: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(registros)
 
+# Gabarito 
+def salvar_gabarito(tabelas: dict) -> None:
+    """Salva os dados limpos (a 'verdade') usados como referência na validação."""
+    cfg.DIR_GABARITO.mkdir(parents=True, exist_ok=True)
+    print("\n=== GABARITO SALVO ===")
+    for nome, df in tabelas.items():
+        caminho = cfg.DIR_GABARITO / f"{nome}.csv"
+        df.to_csv(caminho, sep=cfg.SEPARADOR, encoding=cfg.ENCODING, index=False)
+        print(f"  {caminho.name}: {len(df)} linhas")
+
 # Execução
 
 if __name__ == "__main__":
@@ -216,3 +226,11 @@ if __name__ == "__main__":
     assert (opp_lead["data_criacao"] >= opp_lead["data_criacao_lead"]).all(), "Oportunidade antes do lead"
 
     print("\nRegras de realismo conferidas.")
+
+    salvar_gabarito({
+        "usuarios": usuarios,
+        "campanhas": campanhas.drop(columns="eficiencia"),
+        "leads": leads,
+        "oportunidades": oportunidades,
+        "roi_campanhas": roi.reset_index(),
+    })  
