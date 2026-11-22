@@ -4,3 +4,4 @@ dados/brutos/*.csv
 dados/gabarito/*.csv
 dados/log_problemas.json
 *.xlsx
+dados/resultado_validacao.csv
