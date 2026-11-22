@@ -5,3 +5,4 @@ dados/gabarito/*.csv
 dados/log_problemas.json
 *.xlsx
 dados/resultado_validacao.csv
+.vscode/settings.json
