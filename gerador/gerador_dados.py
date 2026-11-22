@@ -83,22 +83,136 @@ def gerar_campanhas(usuarios: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(registros)
 
+def gerar_leads(campanhas: pd.DataFrame) -> pd.DataFrame:
+    cidades = [c for c, _, _ in cfg.CIDADES]
+    ufs = [u for _, u, _ in cfg.CIDADES]
+    pesos_cidades = [p for _, _, p in cfg.CIDADES]
+    status_nao_conv = list(cfg.STATUS_LEAD_NAO_CONVERTIDO)
+    pesos_status = list(cfg.STATUS_LEAD_NAO_CONVERTIDO.values())
 
+    registros = []
+    contador = 0
+
+    for _, camp in campanhas.iterrows():
+        params = cfg.CANAIS[camp["canal"]]
+
+        # Volume de leads proporcional ao investimento e à eficiência da campanha
+        esperado = camp["investimento"] / 1000 * params["leads_por_mil"] * camp["eficiencia"]
+        n_leads = int(rng.poisson(esperado))
+        prob_conversao = min(params["taxa_conversao"] * np.sqrt(camp["eficiencia"]), 0.9)
+        duracao = (camp["data_fim"] - camp["data_inicio"]).days
+
+        for _ in range(n_leads):
+            contador += 1
+
+            # Regra: lead criado dentro do período da campanha
+            criacao = camp["data_inicio"] + timedelta(days=int(rng.integers(0, duracao + 1)))
+
+            idade = int(rng.integers(cfg.IDADE[0], cfg.IDADE[1] + 1))
+            nascimento = criacao - timedelta(days=int(idade * 365.25) + int(rng.integers(0, 365)))
+            i_cidade = int(rng.choice(len(cidades), p=pesos_cidades))
+
+            # Regra: conversão ocorre depois da criação e dentro do período da base
+            convertido = rng.random() < prob_conversao
+            data_conversao = None
+            if convertido:
+                dias = int(rng.integers(cfg.DIAS_ATE_CONVERSAO[0], cfg.DIAS_ATE_CONVERSAO[1] + 1))
+                data_conversao = criacao + timedelta(days=dias)
+                if data_conversao > cfg.DATA_FIM:
+                    convertido, data_conversao = False, None
+
+            status = (cfg.STATUS_LEAD_CONVERTIDO if convertido
+                      else str(rng.choice(status_nao_conv, p=pesos_status)))
+
+            registros.append({
+                "id_lead": f"LD-{contador:06d}",
+                "nome": f"{fake.first_name()} {fake.last_name()}",
+                "email": fake.email(),
+                "telefone": fake.phone_number(),
+                "data_nascimento": nascimento,
+                "cidade": cidades[i_cidade],
+                "uf": ufs[i_cidade],
+                "segmento": str(rng.choice(cfg.SEGMENTOS)),
+                "id_campanha": camp["id_campanha"],
+                "status": status,
+                "data_criacao": criacao,
+                "data_conversao": data_conversao,
+            })
+
+    return pd.DataFrame(registros)
+
+
+# OPORTUNIDADES
+def gerar_oportunidades(leads: pd.DataFrame) -> pd.DataFrame:
+    convertidos = leads[leads["status"] == cfg.STATUS_LEAD_CONVERTIDO]
+    registros = []
+
+    for i, lead in enumerate(convertidos.itertuples(index=False), start=1):
+        # Regra: a oportunidade nasce na data de conversão do lead
+        criacao = lead.data_conversao
+        dias = int(rng.integers(cfg.DIAS_ATE_FECHAMENTO[0], cfg.DIAS_ATE_FECHAMENTO[1] + 1))
+        fechamento = criacao + timedelta(days=dias)
+
+        if fechamento > cfg.DATA_FIM:
+            status, fechamento, ganha = cfg.STATUS_OPORTUNIDADE_ABERTA, None, False
+        else:
+            ganha = bool(rng.random() < cfg.TAXA_GANHO)
+            status = cfg.STATUS_OPORTUNIDADE[0] if ganha else cfg.STATUS_OPORTUNIDADE[1]
+
+        # Regra: valores com distribuição assimétrica (lognormal)
+        valor = round(float(rng.lognormal(np.log(cfg.VALOR_MEDIANA), cfg.VALOR_SIGMA)), 2)
+
+        registros.append({
+            "id_oportunidade": f"OP-{i:06d}",
+            "id_lead": lead.id_lead,
+            "data_criacao": criacao,
+            "data_fechamento": fechamento,
+            "status": status,
+            "ganha": ganha,
+            "valor": valor,
+        })
+
+    return pd.DataFrame(registros)
 
 # Execução
 
 if __name__ == "__main__":
     usuarios = gerar_usuarios()
     campanhas = gerar_campanhas(usuarios)
+    leads = gerar_leads(campanhas)
+    oportunidades = gerar_oportunidades(leads)
 
-    print("=== USUÁRIOS ===")
-    print(usuarios.to_string(index=False))
+    print("=== VOLUMES ===")
+    print(f"Usuários: {len(usuarios)} | Campanhas: {len(campanhas)} | "
+          f"Leads: {len(leads)} | Oportunidades: {len(oportunidades)}")
 
-    print("\n=== CAMPANHAS (5 primeiras) ===")
-    print(campanhas.drop(columns="eficiencia").head().to_string(index=False))
+    print("\n=== STATUS DOS LEADS ===")
+    print(leads["status"].value_counts().to_string())
 
-    print("\n=== CAMPANHAS POR GERENTE ===")
-    print(campanhas["responsavel_nome"].value_counts().to_string())
+    print("\n=== STATUS DAS OPORTUNIDADES ===")
+    print(oportunidades["status"].value_counts().to_string())
 
-    print("\n=== INVESTIMENTO POR CANAL ===")
-    print(campanhas.groupby("canal")["investimento"].agg(["count", "sum"]).to_string())
+    # Taxa de conversão por canal
+    leads_canal = leads.merge(campanhas[["id_campanha", "canal"]], on="id_campanha")
+    conversao = (leads_canal["status"] == cfg.STATUS_LEAD_CONVERTIDO).groupby(leads_canal["canal"]).mean()
+    print("\n=== TAXA DE CONVERSÃO POR CANAL ===")
+    print(conversao.map("{:.1%}".format).to_string())
+
+    # ROI por campanha
+    opp_camp = oportunidades.merge(leads[["id_lead", "id_campanha"]], on="id_lead")
+    receita = opp_camp[opp_camp["ganha"]].groupby("id_campanha")["valor"].sum().rename("receita")
+    roi = campanhas.set_index("id_campanha")[["canal", "investimento"]].join(receita).fillna({"receita": 0})
+    roi["roi"] = (roi["receita"] - roi["investimento"]) / roi["investimento"]
+    print("\n=== ROI POR CAMPANHA ===")
+    print(f"Campanhas com ROI negativo: {(roi['roi'] < 0).sum()} de {len(roi)}")
+    print(f"ROI mínimo: {roi['roi'].min():.0%} | mediano: {roi['roi'].median():.0%} | máximo: {roi['roi'].max():.0%}")
+
+    # Conferência das regras de realismo
+    leads_camp = leads.merge(campanhas[["id_campanha", "data_inicio", "data_fim"]], on="id_campanha")
+    assert ((leads_camp["data_criacao"] >= leads_camp["data_inicio"]) &
+            (leads_camp["data_criacao"] <= leads_camp["data_fim"])).all(), "Lead fora do período da campanha"
+
+    opp_lead = oportunidades.merge(leads[["id_lead", "data_criacao"]], on="id_lead", suffixes=("", "_lead"))
+    assert (opp_lead["data_criacao"] >= opp_lead["data_criacao_lead"]).all(), "Oportunidade antes do lead"
+
+    print("\nRegras de realismo conferidas.")

@@ -69,6 +69,7 @@ VALOR_MEDIANA = 3_000
 VALOR_SIGMA = 0.8
 DIAS_ATE_FECHAMENTO = (7, 90)
 STATUS_OPORTUNIDADE = ["Ganha", "Perdida"]
+STATUS_OPORTUNIDADE_ABERTA = "Em aberto"
 
 
 # Problemas de qualidade de dados (para gerar a base bruta)
