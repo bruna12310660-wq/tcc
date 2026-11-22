@@ -192,6 +192,10 @@ def transformar_oportunidades(df, leads, relatorio):
                    "Oportunidade órfã (lead inexistente)", relatorio)
     df = descartar(df, df["valor"] < 0, arq, "Valor negativo (não confiável)", relatorio)
 
+    convertidos = leads.loc[leads["status"] == "Convertido", "id_lead"]
+    df = descartar(df, ~df["id_lead"].isin(convertidos), arq,
+                   "Oportunidade de lead não convertido", relatorio)
+
     incoerente = df["data_fechamento"] < df["data_criacao"]
     df.loc[incoerente, "data_fechamento"] = pd.NaT
     registrar(relatorio, arq, "Fechamento anterior à criação (data 'não informada')", "corrigido",

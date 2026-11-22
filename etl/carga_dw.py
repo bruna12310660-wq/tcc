@@ -108,8 +108,8 @@ def construir_modelo(limpos: dict) -> dict:
         "sk_status": leads["status"].map(status_lead),
         "sk_data_criacao": data_para_sk(leads["data_criacao"]),
         "sk_data_conversao": data_para_sk(leads["data_conversao"]),
-        # Convertido = possui oportunidade válida no DW (funil coerente)
-        "indicador_conversao": leads["id_lead"].isin(opps["id_lead"]),
+        # Convertido = status registrado no CRM (valor real de conversão)
+        "indicador_conversao": leads["status"] == "Convertido",
         "dias_ate_conversao": (leads["data_conversao"] - leads["data_criacao"]).dt.days.astype("Int64"),
     })
 
