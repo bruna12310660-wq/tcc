@@ -10,7 +10,7 @@ from sqlalchemy import create_engine
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.append(str(RAIZ / "etl"))
-import config_etl as cfg  # noqa: E402
+import config_etl as cfg 
 
 DIR_GABARITO = RAIZ / "dados" / "gabarito"
 ARQ_LOG = RAIZ / "dados" / "log_problemas.json"
