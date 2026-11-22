@@ -10,6 +10,8 @@ from sqlalchemy.types import NVARCHAR
 
 import config_etl as cfg
 
+from carga_dw import construir_modelo, carregar_dw
+
 
 
 # CONEXÃO E LOG
@@ -104,6 +106,16 @@ if __name__ == "__main__":
 
         print("\n=== REGRAS APLICADAS ===")
         print(pd.DataFrame(relatorio).to_string(index=False))
+
+        print("\n=== CARGA DATA WAREHOUSE ===")
+        inicio = time.time()
+        modelo = construir_modelo(limpos)
+        contagens = carregar_dw(engine, modelo)
+        for tabela, quantidade in contagens.items():
+            registrar_log(engine, "Carga DW", "Sucesso", arquivo=f"dw.{tabela}",
+                          carregados=quantidade)
+            print(f"  dw.{tabela}: {quantidade} linhas")
+        registrar_log(engine, "Carga DW (total)", "Sucesso", duracao=time.time() - inicio)
 
         registrar_log(engine, "Pipeline completo", "Sucesso",
                       duracao=time.time() - inicio_total)

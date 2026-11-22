@@ -38,3 +38,20 @@ REGIOES = {
 
 FAIXAS_ETARIAS_LIMITES = [18, 25, 35, 45, 55, 200]
 FAIXAS_ETARIAS_ROTULOS = ["18 a 24", "25 a 34", "35 a 44", "45 a 54", "55 ou mais"]
+
+# Dimensão status
+
+STATUS = [
+    ("Novo", "Lead recém-captado", "Em aberto", "Lead"),
+    ("Em qualificação", "Lead em avaliação comercial", "Em aberto", "Lead"),
+    ("Convertido", "Lead convertido em oportunidade", "Convertido", "Lead"),
+    ("Descartado", "Lead sem potencial comercial", "Perdido", "Lead"),
+    ("Em aberto", "Oportunidade em negociação", "Em aberto", "Oportunidade"),
+    ("Ganha", "Oportunidade concretizada", "Convertido", "Oportunidade"),
+    ("Perdida", "Oportunidade não concretizada", "Perdido", "Oportunidade"),
+]
+
+MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+         "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+DIAS_SEMANA = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira",
+               "Sexta-feira", "Sábado", "Domingo"]
