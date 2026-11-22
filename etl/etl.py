@@ -1,5 +1,6 @@
 #Pipeline ETL: arquivos -> sql server
 
+from transformacoes import transformar
 import time
 from urllib.parse import quote_plus
 
@@ -72,7 +73,6 @@ def carregar_stg(engine, dados: dict) -> None:
         print(f"  Carregado stg.{nome}: {len(df)} linhas")
 
 
-
 # EXECUÇÃO
 
 if __name__ == "__main__":
@@ -85,6 +85,25 @@ if __name__ == "__main__":
 
         print("\nCARGA STAGING")
         carregar_stg(engine, dados)
+
+        print("\n=== TRANSFORMAÇÃO ===")
+        inicio = time.time()
+        limpos, relatorio = transformar(dados)
+
+        for item in relatorio:
+            registrar_log(engine, f"Regra: {item['regra']}", "Sucesso", arquivo=item["arquivo"],
+                          descartados=item["quantidade"] if item["acao"] == "descartado" else None,
+                          mensagem=f"{item['acao']}: {item['quantidade']}")
+
+        for nome, df in limpos.items():
+            lidos = len(dados[nome])
+            registrar_log(engine, "Transformação", "Sucesso", arquivo=nome, lidos=lidos,
+                          descartados=lidos - len(df), carregados=len(df),
+                          duracao=time.time() - inicio)
+            print(f"  {nome}: {lidos} lidos -> {len(df)} válidos")
+
+        print("\n=== REGRAS APLICADAS ===")
+        print(pd.DataFrame(relatorio).to_string(index=False))
 
         registrar_log(engine, "Pipeline completo", "Sucesso",
                       duracao=time.time() - inicio_total)
